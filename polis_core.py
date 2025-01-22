@@ -3,6 +3,10 @@ from sklearn.decomposition import PCA
 from scipy.cluster import hierarchy
 from sklearn.metrics import silhouette_score
 from collections import defaultdict
+from sklearn.cluster import KMeans
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import StandardScaler
 
 
 class OpinionAnalyzer:
@@ -29,7 +33,8 @@ class OpinionAnalyzer:
         """
         self._handle_sparse_votes(vote_matrix)
         points_2d = self._compute_pca(vote_matrix)
-        clusters = self._find_optimal_clusters(points_2d)
+        kmeans = self._get_kmeans(points_2d)
+        clusters: np.ndarray = np.array([]) if kmeans is None else np.array(kmeans.labels_)
 
         # Calculate consensus and group data
         statement_scores = np.mean(vote_matrix, axis=0)
@@ -63,8 +68,9 @@ class OpinionAnalyzer:
             matrix[i][row == 0] = row_means[i]
 
     def _compute_pca(self, matrix):
-        masked_matrix = np.ma.masked_where(matrix == 0, matrix)
-        return self.pca.fit_transform(masked_matrix)
+        imputer = SimpleImputer(strategy="mean")  # Replace missing/zero with column mean
+        processed_matrix = imputer.fit_transform(matrix)
+        return self.pca.fit_transform(processed_matrix)
 
     def _compute_pattern_difference(self, clusters, points):
         cluster_means = defaultdict(list)
@@ -106,3 +112,22 @@ class OpinionAnalyzer:
 
         optimal_n = self.min_clusters + np.argmax(scores)
         return hierarchy.fcluster(linkage, t=optimal_n, criterion="maxclust")
+
+    def _get_pca(self, vote_matrix: np.ndarray):
+        scaled_matrix = StandardScaler().fit_transform(vote_matrix)
+        return self.pca.fit_transform(scaled_matrix)
+
+
+    def _get_kmeans(self, reduced: np.ndarray) -> KMeans | None:
+        best_silhouette = -1
+        best_kmeans = None
+        for n_clusters in range(2, min(6, len(reduced))):
+            kmeans = KMeans(n_clusters=n_clusters)
+            kmeans.fit(reduced)
+            silhouette = silhouette_score(reduced, kmeans.labels_)
+            if silhouette > best_silhouette:
+                best_silhouette = silhouette
+                best_kmeans = kmeans
+
+        return best_kmeans
+
