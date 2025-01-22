@@ -62,3 +62,7 @@ feature completeness for the algorithm.
 ## Plot example
 
 ![Image of a the user's opinions on a 2D plane](plot_example.png)
+
+## License
+
+Some of this code was copy-pasted from https://github.com/MaanasArora/polis-ctto/blob/master/polis.server/polis/core/routines.py which is MIT-licensed.
